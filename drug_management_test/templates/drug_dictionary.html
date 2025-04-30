@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>药品字典管理</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>药品字典管理</h1>
+            <div class="user-info">
+                当前用户：{{ current_user.id }}
+                <a href="{{ url_for('logout') }}" class="logout-btn">退出</a>
+            </div>
+        </header>
+        
+        <div class="search-section">
+            <div class="search-form">
+                <label>药品名称/简拼：</label>
+                <input type="text" id="drug_search" placeholder="请输入药品名称或简拼">
+                
+                <div class="date-range">
+                    <label>更新时间：</label>
+                    <input type="date" id="date_from">
+                    <span>至</span>
+                    <input type="date" id="date_to">
+                </div>
+                
+                <label>操作员：</label>
+                <input type="text" id="operator">
+                
+                <label>状态：</label>
+                <select id="status">
+                    <option value="all">全部</option>
+                    <option value="enabled">启用</option>
+                    <option value="disabled">停用</option>
+                </select>
+                
+                <button type="button" class="search-btn">查询</button>
+                <button type="button" class="reset-btn" onclick="clearSearch()">重置</button>
+                <button type="button" class="add-btn" onclick="openModal()">添加</button>
+            </div>
+        </div>
+
+        <div class="data-table">
+            <table>
+                <thead>
+                    <tr>
+                        <th>药品名称</th>
+                        <th>规格</th>
+                        <th>更新时间</th>
+                        <th>操作员</th>
+                        <th>状态</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="drug-table-body">
+                    {% for drug in drugs %}
+                    <tr data-id="{{ drug.id }}">
+                        <td>{{ drug.drug_name }}</td>
+                        <td>{{ drug.specification }}</td>
+                        <td>{{ drug.update_time }}</td>
+                        <td>{{ drug.operator }}</td>
+                        <td>{{ drug.status }}</td>
+                        <td>
+                            <button class="edit-btn" onclick="openModal({{ drug.id }})">编辑</button>
+                            <button class="status-btn" onclick="toggleStatus({{ drug.id }})">
+                                {{ '停用' if drug.status == '启用' else '启用' }}
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 模态框 -->
+    <div id="drugModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <h2 id="modal-title">添加药品</h2>
+            <form id="drugForm">
+                <input type="hidden" id="drug_id">
+                <div class="form-group">
+                    <label for="drug_name">药品名称：</label>
+                    <input type="text" id="drug_name" required>
+                </div>
+                <div class="form-group">
+                    <label for="specification">规格：</label>
+                    <input type="text" id="specification" required>
+                </div>
+                <button type="submit" class="submit-btn">提交</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let currentDrugId = null;
+
+        function openModal(drugId = null) {
+            currentDrugId = drugId;
+            const modal = document.getElementById('drugModal');
+            const modalTitle = document.getElementById('modal-title');
+            const drugNameInput = document.getElementById('drug_name');
+            const specificationInput = document.getElementById('specification');
+
+            if (drugId) {
+                modalTitle.textContent = '编辑药品';
+                const row = document.querySelector(`tr[data-id="${drugId}"]`);
+                drugNameInput.value = row.cells[0].textContent;
+                specificationInput.value = row.cells[1].textContent;
+            } else {
+                modalTitle.textContent = '添加药品';
+                drugNameInput.value = '';
+                specificationInput.value = '';
+            }
+
+            modal.style.display = 'block';
+        }
+
+        function closeModal() {
+            document.getElementById('drugModal').style.display = 'none';
+        }
+
+        function toggleStatus(drugId) {
+            fetch(`/api/drug/status/${drugId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                }
+            });
+        }
+
+        document.getElementById('drugForm').onsubmit = function(e) {
+            e.preventDefault();
+            const drugData = {
+                drug_name: document.getElementById('drug_name').value,
+                specification: document.getElementById('specification').value
+            };
+
+            const url = currentDrugId ? 
+                `/api/drug/${currentDrugId}` : 
+                '/api/drug';
+            
+            fetch(url, {
+                method: currentDrugId ? 'PUT' : 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(drugData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                }
+            });
+        };
+
+        // 搜索功能
+        document.querySelector('.search-btn').addEventListener('click', function() {
+            const searchData = {
+                drug_search: document.getElementById('drug_search').value,
+                date_from: document.getElementById('date_from').value,
+                date_to: document.getElementById('date_to').value,
+                operator: document.getElementById('operator').value,
+                status: document.getElementById('status').value
+            };
+
+            fetch('/api/search', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(searchData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    updateTable(data.drugs);
+                }
+            });
+        });
+
+        function updateTable(drugs) {
+            const tbody = document.getElementById('drug-table-body');
+            tbody.innerHTML = '';
+            
+            drugs.forEach(drug => {
+                const tr = document.createElement('tr');
+                tr.setAttribute('data-id', drug.id);
+                
+                tr.innerHTML = `
+                    <td>${drug.drug_name}</td>
+                    <td>${drug.specification}</td>
+                    <td>${drug.update_time}</td>
+                    <td>${drug.operator}</td>
+                    <td>${drug.status}</td>
+                    <td>
+                        <button class="edit-btn" onclick="openModal(${drug.id})">编辑</button>
+                        <button class="status-btn" onclick="toggleStatus(${drug.id})">
+                            ${drug.status === '启用' ? '停用' : '启用'}
+                        </button>
+                    </td>
+                `;
+                
+                tbody.appendChild(tr);
+            });
+        }
+
+        // 清空搜索条件
+        function clearSearch() {
+            document.getElementById('drug_search').value = '';
+            document.getElementById('operator').value = '';
+            document.getElementById('status').value = 'all';
+            
+            // 重置日期为当月
+            const today = new Date();
+            const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+            const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+            document.getElementById('date_from').value = firstDay.toISOString().split('T')[0];
+            document.getElementById('date_to').value = lastDay.toISOString().split('T')[0];
+            
+            // 触发搜索
+            document.querySelector('.search-btn').click();
+        }
+
+        // 设置默认日期范围
+        document.addEventListener('DOMContentLoaded', function() {
+            const today = new Date();
+            const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+            const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+            document.getElementById('date_from').value = firstDay.toISOString().split('T')[0];
+            document.getElementById('date_to').value = lastDay.toISOString().split('T')[0];
+        });
+
+        // 回车键触发搜索
+        document.querySelectorAll('.search-form input, .search-form select').forEach(element => {
+            element.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    document.querySelector('.search-btn').click();
+                }
+            });
+        });
+
+        // 点击模态框外部关闭
+        window.onclick = function(event) {
+            const modal = document.getElementById('drugModal');
+            if (event.target == modal) {
+                closeModal();
+            }
+        }
+    </script>
+</body>
+</html>
