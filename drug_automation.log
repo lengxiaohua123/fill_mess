@@ -1,0 +1,10 @@
+2025-04-30 17:37:37,068 - WARNING - Error sending stats to Plausible: error sending request for url (https://plausible.io/api/event)
+2025-04-30 17:42:07,960 - INFO - ====== WebDriver manager ======
+2025-04-30 17:42:08,117 - INFO - Get LATEST chromedriver version for google-chrome
+2025-04-30 17:42:08,953 - INFO - About to download new driver from https://chromedriver.storage.googleapis.com/114.0.5735.90/chromedriver_linux64.zip
+2025-04-30 17:42:09,525 - INFO - Driver downloading response is 200
+2025-04-30 17:42:11,322 - INFO - Get LATEST chromedriver version for google-chrome
+2025-04-30 17:42:12,061 - INFO - Get LATEST chromedriver version for google-chrome
+2025-04-30 17:42:12,748 - INFO - Driver has been saved in cache [/root/.wdm/drivers/chromedriver/linux64/114.0.5735.90]
+2025-04-30 17:42:12,760 - ERROR - Chrome driver 初始化失败: Message: Service /root/.wdm/drivers/chromedriver/linux64/114.0.5735.90/chromedriver unexpectedly exited. Status code was: 127
+
